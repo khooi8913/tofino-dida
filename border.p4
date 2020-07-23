@@ -374,9 +374,6 @@ control SwitchIngress(
                 hash1_res();
                 hash2_res();
 
-                // ig_md.exceed = ig_md.exceed + sketch0_count.execute(ig_md.index0);
-                // ig_md.exceed = ig_md.exceed + sketch1_count.execute(ig_md.index1);
-                // ig_md.exceed = ig_md.exceed + sketch2_count.execute(ig_md.index2);
                 ig_md.min_count = sketch0_count.execute(ig_md.index0);
                 ig_md.min_count = sketch1_count.execute(ig_md.index1);
                 ig_md.min_count = sketch2_count.execute(ig_md.index2);

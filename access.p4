@@ -419,16 +419,16 @@ control SwitchIngress(
                 ig_md.exceed = ig_md.exceed + sketch0_read.execute(ig_md.index0);
                 ig_md.exceed = ig_md.exceed + sketch1_read.execute(ig_md.index1);
                 ig_md.exceed = ig_md.exceed + sketch2_read.execute(ig_md.index2);
+
+                // if all 3 diffs exceed tolerable range
+                if(ig_md.exceed == 3) {
+                    ig_md.is_attack = 1;
+                }
+
+                // confirm the attack and send back to the originating border
+                mark_attack.apply();
             }
         }
-
-        // if all 3 diffs exceed tolerable range
-        if(ig_md.exceed == 3) {
-            ig_md.is_attack = 1;
-        }
-
-        // confirm the attack and send back to the originating border
-        mark_attack.apply();
     }
 }
 
