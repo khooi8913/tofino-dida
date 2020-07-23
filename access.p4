@@ -23,7 +23,15 @@ struct metadata_t {
     bit<32> tolerable_range;
 
     // window ID
-    bit<32> window_id;
+    // bit<32> relative_window_id;
+    // bit<32> global_window_id;
+
+    // bit<16> ts;
+}
+
+struct pair {
+    bit<32>     first;
+    bit<32>     second;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,18 +109,6 @@ control SwitchIngress(
         inout ingress_intrinsic_metadata_for_deparser_t ig_dprsr_md,
         inout ingress_intrinsic_metadata_for_tm_t ig_tm_md) {
     
-    // Register<bit<32>,_>(1) global_window;
-    // RegisterAction<bit<32>, _, bit<32>> (global_window) global_window_read = {
-    //     void apply(inout bit<32> val, out bit<32> rv) {
-    //         rv = val;
-    //     }
-    // };
-    // RegisterAction<bit<32>, _, bit<32>> (global_window) global_window_write = {
-    //     void apply(inout bit<32> val, out bit<32> rv) {
-    //         rv = val;
-    //     }
-    // };
-
     Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_zero;
     Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_zero_zero;
     Hash<bit<16>>(HashAlgorithm_t.CRC32) hash_one;
@@ -199,6 +195,29 @@ control SwitchIngress(
             rv = val;
         }
     };
+
+    // Register<pair, _>(1) global_window;
+    // RegisterAction<pair, _, bit<32>> (global_window) global_window_update = {
+    //     void apply(inout pair val, out bit<32> rv) {
+    //         // first, second - wrap_around_constant, global_window_id
+
+    //         bit<32> temp_wrap_constant;
+    //         temp_wrap_constant = 0;
+
+    //         bit<32> temp_window_id;
+    //         temp_window_id = ig_md.relative_window_id + val.first;
+
+    //         if(temp_window_id < val.second) {
+    //             // 10 is window_per_phase
+    //             temp_wrap_constant = 10;
+    //         }
+    //         val.first = val.first + temp_wrap_constant;
+    //         val.second = ig_md.relative_window_id + val.first;
+    //         // val.second = temp_window_id;
+    //         rv = val.second;
+    //     }
+    // };
+
 
     // Hash
     action hash0_ctrl() {
@@ -311,6 +330,19 @@ control SwitchIngress(
         ig_tm_md.ucast_egress_port = ig_intr_md.ingress_port;
     }
 
+    // action getAbsoluteWindowId(bit<32> window_id) {
+    //     ig_md.relative_window_id = window_id;
+    // }
+
+    // table get_window_id {
+    //     key = {     
+    //         ig_md.ts : range;
+    //     }
+    //     actions = {
+    //         getAbsoluteWindowId;
+    //     }
+    // }
+
     table ipv4_forward {
         key = {
             ig_intr_md.ingress_port : exact;
@@ -395,6 +427,11 @@ control SwitchIngress(
     }
   
     apply {
+        // ig_md.ts = (bit<16>) ig_prsr_md.global_tstamp;
+        // get_window_id.apply();
+        // ig_md.global_window_id = global_window_update.execute(0);
+        
+
         ig_md.tolerable_range = tolerable_range_read.execute(0);
         ipv4_forward.apply();
 
