@@ -8,6 +8,7 @@
 #include "common/headers.p4"
 #include "common/util.p4"
 
+#define TOLERABLE_RANGE 0x14
 
 struct metadata_t {
     // indexes
@@ -20,18 +21,13 @@ struct metadata_t {
     bit<1> is_attack;
     bit<2> exceed;
 
-    bit<32> tolerable_range;
-
-    // window ID
-    // bit<32> relative_window_id;
-    // bit<32> global_window_id;
-
-    // bit<16> ts;
+    bit<16> increment_val;
+    bit<16> current_tstamp;
 }
 
 struct pair {
-    bit<32>     first;
-    bit<32>     second;
+    bit<16>     first;
+    bit<16>     second;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,108 +112,81 @@ control SwitchIngress(
     Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_two;
     Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_two_two;
 
-    Register<bit<32>,_>(32w65536) sketch0;
-    Register<bit<32>,_>(32w65536) sketch1;
-    Register<bit<32>,_>(32w65536) sketch2;
+    Register<pair,_>(32w65536) sketch0;
+    Register<pair,_>(32w65536) sketch1;
+    Register<pair,_>(32w65536) sketch2;
 
-    RegisterAction<bit<32>, _, void> (sketch0) sketch0_count = {
-        void apply(inout bit<32> val) {
-            val = val + 1;
+    RegisterAction<pair, bit<16>, void> (sketch0) sketch0_count = {
+        void apply(inout pair val) {
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
+            }
+            val.first = val.first + 1;
+            val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<bit<32>, _, bit<2>> (sketch0) sketch0_read = {
-        void apply(inout bit<32> val, out bit<2> rv) {
-            // rv = val;
+    RegisterAction<pair, bit<16>, bit<16>> (sketch0) sketch0_diff = {
+        void apply(inout pair val, out bit<16> rv) {
             rv = 0;
 
-            bit<32> temp;
-            temp = val;
-            bit<32> diff;
-            diff = hdr.ctrl.counter_val - val;
-
-            val = diff;
-            if(val > ig_md.tolerable_range) {
-                rv = 1;
+            bit<16> temp;
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
             }
-            val = temp;
+            val.second = ig_md.current_tstamp;
+            
+            temp = hdr.ctrl.counter_val - val.first;
+            rv = temp;
         }
     };
 
-
-    RegisterAction<bit<32>, _, void> (sketch1) sketch1_count = {
-        void apply(inout bit<32> val) {
-            val = val + 1;
+    RegisterAction<pair, bit<16>, void> (sketch1) sketch1_count = {
+        void apply(inout pair val) {
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
+            }
+            val.first = val.first + 1;
+            val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<bit<32>, _, bit<2>> (sketch1) sketch1_read = {
-        void apply(inout bit<32> val, out bit<2> rv) {
-            // rv = val;
+    RegisterAction<pair, bit<16>, bit<16>> (sketch1) sketch1_diff = {
+        void apply(inout pair val, out bit<16> rv) {
             rv = 0;
 
-            bit<32> temp;
-            temp = val;
-            bit<32> diff;
-            diff = hdr.ctrl.counter_val - val;
-
-            val = diff;
-            if(val > ig_md.tolerable_range) {
-                rv = 1;
+            bit<16> temp;
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
             }
-            val = temp;
+            val.second = ig_md.current_tstamp;
+            
+            temp = hdr.ctrl.counter_val - val.first;
+            rv = temp;
         }
     };
 
-    RegisterAction<bit<32>, _, void> (sketch2) sketch2_count = {
-        void apply(inout bit<32> val) {
-            val = val + 1;
+    RegisterAction<pair, bit<16>, void> (sketch2) sketch2_count = {
+        void apply(inout pair val) {
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
+            }
+            val.first = val.first + 1;
+            val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<bit<32>, _, bit<2>> (sketch2) sketch2_read = {
-        void apply(inout bit<32> val, out bit<2> rv) {
+    RegisterAction<pair, bit<16>, bit<16>> (sketch2) sketch2_diff = {
+        void apply(inout pair val, out bit<16> rv) {
             rv = 0;
 
-            bit<32> temp;
-            temp = val;
-            bit<32> diff;
-            diff = hdr.ctrl.counter_val - val;
-
-            val = diff;
-            if(val > ig_md.tolerable_range) {
-                rv = 1;
+            bit<16> temp;
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
             }
-            val = temp;
+            val.second = ig_md.current_tstamp;
+            
+            temp = hdr.ctrl.counter_val - val.first;
+            rv = temp;
         }
     };
-
-    Register<bit<32>,_>(1) tolerable_range;
-    RegisterAction<bit<32>, _, bit<32>> (tolerable_range) tolerable_range_read = {
-        void apply(inout bit<32> val, out bit<32> rv) {
-            rv = val;
-        }
-    };
-
-    // Register<pair, _>(1) global_window;
-    // RegisterAction<pair, _, bit<32>> (global_window) global_window_update = {
-    //     void apply(inout pair val, out bit<32> rv) {
-    //         // first, second - wrap_around_constant, global_window_id
-
-    //         bit<32> temp_wrap_constant;
-    //         temp_wrap_constant = 0;
-
-    //         bit<32> temp_window_id;
-    //         temp_window_id = ig_md.relative_window_id + val.first;
-
-    //         if(temp_window_id < val.second) {
-    //             // 10 is window_per_phase
-    //             temp_wrap_constant = 10;
-    //         }
-    //         val.first = val.first + temp_wrap_constant;
-    //         val.second = ig_md.relative_window_id + val.first;
-    //         // val.second = temp_window_id;
-    //         rv = val.second;
-    //     }
-    // };
-
 
     // Hash
     action hash0_ctrl() {
@@ -305,8 +274,6 @@ control SwitchIngress(
         );
     }
 
-
-
     action drop() {
         ig_dprsr_md.drop_ctl = 0x1;    // drop packet
     }
@@ -327,21 +294,13 @@ control SwitchIngress(
         hdr.ctrl.flag = 0xAAAA;
         hdr.ipv4.dst_addr = hdr.ctrl.source_rtr_id;
         hdr.ctrl.counter_val = 0;
+        hdr.ctrl.tstamp_val = 0;
         ig_tm_md.ucast_egress_port = ig_intr_md.ingress_port;
     }
 
-    // action getAbsoluteWindowId(bit<32> window_id) {
-    //     ig_md.relative_window_id = window_id;
-    // }
-
-    // table get_window_id {
-    //     key = {     
-    //         ig_md.ts : range;
-    //     }
-    //     actions = {
-    //         getAbsoluteWindowId;
-    //     }
-    // }
+    action unmarkAttack() {
+        hdr.ctrl.setInvalid();
+    }
 
     table ipv4_forward {
         key = {
@@ -352,10 +311,6 @@ control SwitchIngress(
             NoAction;
         }
         default_action = NoAction();
-        // const entries = {
-        //     9w0x1 : forward(9w0x2);
-        //     9w0x2 : forward(9w0x1);
-        // }
     }
 
     table mark_packet {
@@ -370,10 +325,6 @@ control SwitchIngress(
             markPacket;
         }
         default_action = NoAction;
-        // const entries = {
-        //     (0, 53, _) : countRequests;
-        //     (_, _, 0xAAAA) : markPacket; 
-        // }
     }
 
     table compute_hash0 {
@@ -418,21 +369,13 @@ control SwitchIngress(
         }
         actions = {
             markAttack;
-            NoAction;
+            unmarkAttack;
         }
-        default_action = NoAction();
-        // const entries = {
-        //     1 : markAttack();
-        // }
+        default_action = unmarkAttack();
     }
   
     apply {
-        // ig_md.ts = (bit<16>) ig_prsr_md.global_tstamp;
-        // get_window_id.apply();
-        // ig_md.global_window_id = global_window_update.execute(0);
-        
-
-        ig_md.tolerable_range = tolerable_range_read.execute(0);
+        ig_md.current_tstamp = ig_intr_md.ingress_mac_tstamp[47:32];
         ipv4_forward.apply();
 
         // differentiate between requests and responses (with control header)
@@ -442,29 +385,43 @@ control SwitchIngress(
         ig_md.is_attack = 0; 
         ig_md.exceed = 0; 
 
-        if(ig_md.is_request==1 || ig_md.is_ctrl==1) {
-            compute_hash0.apply();
-            compute_hash1.apply();
-            compute_hash2.apply();
-            if(ig_md.is_request == 1) {
-                // count requests
-                sketch0_count.execute(ig_md.index0);
-                sketch1_count.execute(ig_md.index1);
-                sketch2_count.execute(ig_md.index2);
-            } else {
-                // check request counts
-                ig_md.exceed = ig_md.exceed + sketch0_read.execute(ig_md.index0);
-                ig_md.exceed = ig_md.exceed + sketch1_read.execute(ig_md.index1);
-                ig_md.exceed = ig_md.exceed + sketch2_read.execute(ig_md.index2);
+        compute_hash0.apply();
+        compute_hash1.apply();
+        compute_hash2.apply();
 
-                // if all 3 diffs exceed tolerable range
+        if(ig_md.is_request == 1) {
+            sketch0_count.execute(ig_md.index0); 
+            sketch1_count.execute(ig_md.index1); 
+            sketch2_count.execute(ig_md.index2); 
+        } else if(ig_md.is_ctrl == 1) {
+            // only compare counts with same tstamps (corner case)
+            if((hdr.ctrl.tstamp_val == ig_md.current_tstamp)) {
+                bit<12> temp0;
+                bit<12> temp1;
+                bit<12> temp2;
+
+                // have to cast to 12-bits (hw limitation)
+                temp0 = (bit<12>)sketch0_diff.execute(ig_md.index0);
+                if(temp0 > TOLERABLE_RANGE) {
+                    ig_md.exceed = ig_md.exceed + 1;
+                }
+
+                temp1 = (bit<12>)sketch1_diff.execute(ig_md.index1);
+                if(temp1 > TOLERABLE_RANGE) {
+                    ig_md.exceed = ig_md.exceed + 1;
+                }
+
+                temp2 = (bit<12>)sketch2_diff.execute(ig_md.index2);
+                if(temp2 > TOLERABLE_RANGE) {
+                    ig_md.exceed = ig_md.exceed + 1;
+                }
+
                 if(ig_md.exceed == 3) {
                     ig_md.is_attack = 1;
                 }
-
-                // confirm the attack and send back to the originating border
-                mark_attack.apply();
             }
+            
+            mark_attack.apply();
         }
     }
 }

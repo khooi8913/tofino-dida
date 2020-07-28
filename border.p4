@@ -8,6 +8,7 @@
 #include "common/headers.p4"
 #include "common/util.p4"
 
+#define SUSPICIOUS_THRESHOLD 0x20
 
 struct metadata_t {
     // indexes
@@ -18,7 +19,7 @@ struct metadata_t {
     bit<16> bl0index;
 
     // counts
-    bit<32> min_count;
+    bit<16> min_count;
     bit<32> count0;
     bit<32> count1;
     bit<32> count2;
@@ -27,13 +28,17 @@ struct metadata_t {
     bit<1> is_ctrl;
     bit<1> is_attack;
     bit<1> is_suspicious;
+    bit<1> is_bl;
     bit<2> exceed;
 
-    bit<32> suspicious_threshold;
-
-    // window ID
-    bit<32> window_id;
+    bit<16> current_tstamp;
 }
+
+struct pair {
+    bit<16>     first;
+    bit<16>     second;
+}
+
 
 // ---------------------------------------------------------------------------
 // Ingress parser
@@ -114,101 +119,55 @@ control SwitchIngress(
     Hash<bit<16>>(HashAlgorithm_t.CRC32) hash_one;
     Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_two;
 
-    // Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_zero_zero;
-    // Hash<bit<16>>(HashAlgorithm_t.CRC32) hash_one_one;
-    // Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_two_two;
-
     Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_bl0_one;
     Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_bl0_two;
 
-    Register<bit<32>,_>(32w65536) sketch0;
-    Register<bit<32>,_>(32w65536) sketch1;
-    Register<bit<32>,_>(32w65536) sketch2;
+    Register<pair,_>(32w65536) sketch0;
+    Register<pair,_>(32w65536) sketch1;
+    Register<pair,_>(32w65536) sketch2;
 
-    RegisterAction<bit<32>, _, bit<32>> (sketch0) sketch0_count = {
-        void apply(inout bit<32> val, out bit<32> rv) {
-            val = val + 1;
-            if(val < ig_md.min_count) {
-                rv = ig_md.min_count;
+    RegisterAction<pair, _, bit<16>> (sketch0) sketch0_count = {
+        void apply(inout pair val, out bit<16> rv) {
+            bit<16> temp;
+
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
             }
-            rv = val;
+            val.first = val.first + 1;
+            val.second = ig_md.current_tstamp;
+
+            temp = ig_md.min_count - val.first;
+            rv = temp;            
         }
     };
-    // RegisterAction<bit<32>, _, bit<32>> (sketch0) sketch0_read = {
-    //     void apply(inout bit<32> val, out bit<32> rv) {
-    //         // rv = 0;
-    //         // bit<32> diff;
-    //         // diff = hdr.ctrl.counter_val - val;
 
-    //         // if(diff > 20) {
-    //         //     rv = 1;
-    //         // }
-    //         val = val + 1;
-    //         if(val < ig_md.min_count) {
-    //             ig_md.min_count = val;
-    //         }
-    //         rv = val;
-    //     }
-    // };
+    RegisterAction<pair, _, bit<16>> (sketch1) sketch1_count = {
+        void apply(inout pair val, out bit<16> rv) {
+            bit<16> temp;
 
-
-    RegisterAction<bit<32>, _, bit<32>> (sketch1) sketch1_count = {
-        void apply(inout bit<32> val, out bit<32> rv) {
-            val = val + 1;
-            if(val < ig_md.min_count) {
-                rv = ig_md.min_count;
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
             }
-            rv = val;
+            val.first = val.first + 1;
+            val.second = ig_md.current_tstamp;
+
+            temp = ig_md.min_count - val.first;
+            rv = temp;            
         }
     };
-    // RegisterAction<bit<32>, _, bit<32>> (sketch1) sketch1_read = {
-    //     void apply(inout bit<32> val, out bit<32> rv) {
-    //         // rv = 0;
-    //         // bit<32> diff;
-    //         // diff = hdr.ctrl.counter_val - val;
 
-    //         // if(val > 20) {
-    //         //     rv = 1;
-    //         // }
-    //         if(val < ig_md.min_count) {
-    //             ig_md.min_count = val;
-    //         }
-    //         rv = val;
-    //     }
-    // };
+    RegisterAction<pair, _, bit<16>> (sketch2) sketch2_count = {
+        void apply(inout pair val, out bit<16> rv) {
+            bit<16> temp;
 
-    RegisterAction<bit<32>, _, bit<32>> (sketch2) sketch2_count = {
-        void apply(inout bit<32> val, out bit<32> rv) {
-            val = val + 1;
-            if(val < ig_md.min_count) {
-                rv = ig_md.min_count;
+            if(ig_md.current_tstamp != val.second) {
+                val.first = 0;
             }
-            rv = val;
-        }
-    };
-    // RegisterAction<bit<32>, _, bit<32>> (sketch2) sketch2_read = {
-    //     void apply(inout bit<32> val, out bit<32> rv) {
-    //         // rv = 0;
-    //         // bit<32> diff;
-    //         // diff = hdr.ctrl.counter_val - val;
+            val.first = val.first + 1;
+            val.second = ig_md.current_tstamp;
 
-    //         // if(val > 20) {
-    //         //     rv = 1;
-    //         // }
-    //         if(val < ig_md.min_count) {
-    //             ig_md.min_count = val;
-    //         }
-    //         rv = val;
-    //     }
-    // };
-
-    Register<bit<32>,_>(1) suspicious_threshold;
-    RegisterAction<bit<32>, _, bit<1>> (suspicious_threshold) suspicious_threshold_read = {
-        void apply(inout bit<32> val, out bit<1> rv) {
-            rv = 0;
-            if(ig_md.min_count > val) {
-                rv = 1;
-            }
+            temp = ig_md.min_count - val.first;
+            rv = temp;            
         }
     };
 
@@ -301,11 +260,11 @@ control SwitchIngress(
     }
     
     action markSuspicious() {
-        // TODO
         hdr.ctrl.setValid();
         hdr.ctrl.flag = 0xFFFF; // send this to access
         hdr.ctrl.counter_val = ig_md.min_count;
-        hdr.ctrl.source_rtr_id = 32w0xc0a80101; // router id is hard coded
+        hdr.ctrl.tstamp_val = ig_md.current_tstamp;
+        hdr.ctrl.source_rtr_id = 32w0xc0a80101; // router id is hard coded for now
     }
 
     table ipv4_forward {
@@ -317,10 +276,6 @@ control SwitchIngress(
             NoAction;
         }
         default_action = NoAction();
-        // const entries = {
-        //     9w0x1 : forward(9w0x2);
-        //     9w0x2 : forward(9w0x1);
-        // }
     }
 
     table mark_packet {
@@ -335,10 +290,6 @@ control SwitchIngress(
             markPacket;
         }
         default_action = NoAction;
-        // const entries = {
-        //     (0, 53, _) : countRequests;
-        //     (_, _, 0xAAAA) : markPacket; 
-        // }
     }
 
     table mark_suspicious {
@@ -350,15 +301,21 @@ control SwitchIngress(
             NoAction;
         }
         default_action = NoAction();
-        // const entries = {
-        //     1 : markAttack();
-        // }
+    }
+
+    table filter_traffic {
+        key = {
+            ig_md.is_bl : exact;
+            hdr.udp.src_port : exact;
+        }
+        actions = {
+            drop;
+            NoAction;
+        }
+        default_action = NoAction();
     }
   
     apply {
-        
-        ig_md.min_count = 1<<31;
-
         ipv4_forward.apply();
 
         // differentiate between responses and notifications (ctrl)
@@ -369,28 +326,43 @@ control SwitchIngress(
         ig_md.exceed = 0; 
 
         if(ig_md.is_response == 1 || ig_md.is_ctrl == 1) {
-            if(ig_md.is_response ==1) {
+            if(ig_md.is_response ==1) { // response packets
                 hash0_res();
                 hash1_res();
                 hash2_res();
 
-                ig_md.min_count = sketch0_count.execute(ig_md.index0);
-                ig_md.min_count = sketch1_count.execute(ig_md.index1);
-                ig_md.min_count = sketch2_count.execute(ig_md.index2);
-                ig_md.is_suspicious = suspicious_threshold_read.execute(0);
+                bit<12> temp0;
+                bit<12> temp1;
+                bit<12> temp2;
+
+                temp0 = (bit<12>) sketch0_count.execute(ig_md.index0);
+                if(temp0 > SUSPICIOUS_THRESHOLD) {
+                    ig_md.exceed = ig_md.exceed + 1; 
+                }
+
+                temp1 = (bit<12>) sketch1_count.execute(ig_md.index1);
+                if(temp1 > SUSPICIOUS_THRESHOLD) {
+                    ig_md.exceed = ig_md.exceed + 1; 
+                }
+
+                temp2 = (bit<12>) sketch2_count.execute(ig_md.index2);
+                if(temp2 > SUSPICIOUS_THRESHOLD) {
+                    ig_md.exceed = ig_md.exceed + 1; 
+                }
+
+                if(ig_md.exceed == 3) {
+                    ig_md.is_suspicious = 1;
+                }
                 mark_suspicious.apply();
-            } else {
+            } else { // notification header
                 hash_bl0_ctrl(); // hash the source addr
                 bl0_write.execute(ig_md.bl0index); // write into BL
                 drop();
             }
-        } else {
-            bit<1> bl;
+        } else { // normal traffic
             hash_bl0_res(); // hash the source addr
-            bl = bl0_read.execute(ig_md.bl0index);
-            if(bl == 1) {
-                drop();
-            }
+            ig_md.is_bl = bl0_read.execute(ig_md.bl0index);
+            filter_traffic.apply();
         }
 
     }
