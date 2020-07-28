@@ -316,6 +316,7 @@ control SwitchIngress(
     }
   
     apply {
+        ig_md.current_tstamp = ig_intr_md.ingress_mac_tstamp[47:32];
         ipv4_forward.apply();
 
         // differentiate between responses and notifications (ctrl)
