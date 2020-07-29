@@ -20,6 +20,7 @@ struct metadata_t {
 
     // counts
     bit<16> min_count;
+    bit<16> temp_count;
     bit<16> count0;
     bit<16> count1;
     bit<16> count2;
@@ -32,7 +33,6 @@ struct metadata_t {
     bit<2> exceed;
 
     bit<16> current_tstamp;
-    bit<32> temp_count;
 }
 
 struct pair {
@@ -193,34 +193,21 @@ control SwitchIngress(
 
 
     // Used to find minimum value
-    // Register<bit<16>,_>(1) min0;
-    // RegisterAction<bit<16>, _, bit<16>> (min0) min0_read = {
-    //     void apply(inout bit<16> val, out bit<16> rv) {
-    //         rv = 0;
-
-    //         bit<16> temp = ig_md.temp_count[15:0];
-    //         val = ig_md.temp_count[31:16];
-    //         // val.second = ig_md.min_count;
-
-    //         if(val > temp){
-    //             rv = temp;
-    //         } else {
-    //             rv = val;
-    //         }
-    //     }
-    // };
-
-    // Register<bit<16>,_>(1) min1;
-    // RegisterAction<bit<16>, _, bit<16>> (min1) min1_read = {
-    //     void apply(inout bit<16> val, out bit<16> rv) {
-    //         rv = 0;
-    //         val = ig_md.min_count;
-    //         // if(ig_md.count2 < val){
-    //         //     val = ig_md.count2;
-    //         // }
-    //         rv = val;
-    //     }
-    // };
+    MathUnit<bit<16>>(MathOp_t.DIV, 1) div;
+    Register<bit<16>,_>(1) min0;
+    RegisterAction<bit<16>, _, bit<16>> (min0) min0_read = {
+        void apply(inout bit<16> val, out bit<16> rv) {
+            val = div.execute(ig_md.min_count);
+            rv = val;
+        }
+    };
+    Register<bit<16>,_>(1) min1;
+    RegisterAction<bit<16>, _, bit<16>> (min1) min1_read = {
+        void apply(inout bit<16> val, out bit<16> rv) {
+            val = div.execute(ig_md.min_count);
+            rv = val;
+        }
+    };
 
     action hash_bl0_ctrl() {
         ig_md.bl0index = hash_bl0_one.get(
@@ -298,9 +285,9 @@ control SwitchIngress(
     action markSuspicious() {
         hdr.ctrl.setValid();
         hdr.ctrl.flag = 0xFFFF; // send this to access
-        hdr.ctrl.counter_val = ig_md.count0;
+        hdr.ctrl.counter_val = ig_md.min_count; // "mean" for now
+        // hdr.ctrl.counter_val = ig_md.count0;
         // TODO: how to find minimum?
-        // hdr.ctrl.counter_val = ig_md.min_count;
         hdr.ctrl.tstamp_val = ig_md.current_tstamp;
         hdr.ctrl.source_rtr_id = 32w0xc0a80101; // router id is hard coded for now
     }
@@ -402,9 +389,12 @@ control SwitchIngress(
                 ig_md.count2 = sketch2_count.execute(ig_md.index2);
 
                 // TODO: How to get the minimum?
-                // ig_md.min_count = ig_md.count1 ^ ((ig_md.count0 ^ ig_md.count1) & -(ig_md.count0 < ig_md.count1));
-                // min0_read.execute(0);
-                // ig_md.min_count = min1_read.execute(0);
+                // Hacky way to get "mean" for now
+                // Div,2 then Div,2 with MathUnit
+                ig_md.min_count = ig_md.count0 + ig_md.count1;
+                ig_md.min_count = min0_read.execute(0) + ig_md.count2;
+                ig_md.min_count = min1_read.execute(0);
+
                 mark_suspicious.apply();
             } else { // notification header
                 hash_bl0_ctrl(); // hash the source addr
