@@ -58,7 +58,8 @@ parser SwitchIngressParser(
     state parse_ethernet {
         pkt.extract(hdr.ethernet);
         transition select(hdr.ethernet.ether_type) {
-            ETHERTYPE_IPV4 : parse_ipv4;
+            ETHERTYPE_IPV4 | ETHERTYPE_CTRL : parse_ipv4;
+            default : accept;
         }
     }
     
