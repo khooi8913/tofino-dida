@@ -172,7 +172,7 @@ control SwitchIngress(
         }
     };
 
-    Register<bit<32>,_>(1) bl0;
+    Register<bit<32>,_>(32w65536) bl0;
     RegisterAction<bit<32>, _, bit<1>> (bl0) bl0_read = {
         void apply(inout bit<32> val, out bit<1> rv) {
             rv = 0;
@@ -186,6 +186,37 @@ control SwitchIngress(
             val = hdr.ipv4.src_addr;
         }
     };
+
+
+    // Used to find minimum value
+    // Register<pair,_>(1) min0;
+    // RegisterAction<pair, _, bit<16>> (min0) min0_read = {
+    //     void apply(inout pair val, out bit<16> rv) {
+    //         rv = 0;
+
+    //         bit<16> temp;
+    //         val.first = ig_md.count0 + 0;
+    //         // val.second = ig_md.min_count;
+
+    //         if(val.first < ig_md.min_count){
+    //             // rv = val.first;
+    //             temp = val.first;
+    //         }
+    //         rv = temp; 
+    //     }
+    // };
+
+    // Register<bit<16>,_>(1) min1;
+    // RegisterAction<bit<16>, _, bit<16>> (min1) min1_read = {
+    //     void apply(inout bit<16> val, out bit<16> rv) {
+    //         rv = 0;
+    //         val = ig_md.min_count;
+    //         // if(ig_md.count2 < val){
+    //         //     val = ig_md.count2;
+    //         // }
+    //         rv = val;
+    //     }
+    // };
 
     action hash_bl0_ctrl() {
         ig_md.bl0index = hash_bl0_one.get(
@@ -263,7 +294,9 @@ control SwitchIngress(
     action markSuspicious() {
         hdr.ctrl.setValid();
         hdr.ctrl.flag = 0xFFFF; // send this to access
-        hdr.ctrl.counter_val = ig_md.min_count;
+        hdr.ctrl.counter_val = ig_md.count0;
+        // TODO: how to find minimum?
+        // hdr.ctrl.counter_val = ig_md.min_count;
         hdr.ctrl.tstamp_val = ig_md.current_tstamp;
         hdr.ctrl.source_rtr_id = 32w0xc0a80101; // router id is hard coded for now
     }
@@ -359,9 +392,15 @@ control SwitchIngress(
                 // if(ig_md.exceed == 3) {
                 //     ig_md.is_suspicious = 1;
                 // }
+                
                 ig_md.count0 = sketch0_count.execute(ig_md.index0);
                 ig_md.count1 = sketch1_count.execute(ig_md.index1);
                 ig_md.count2 = sketch2_count.execute(ig_md.index2);
+
+                // TODO: How to get the minimum?
+                // ig_md.min_count = 
+                // min0_read.execute(0);
+                // ig_md.min_count = min1_read.execute(0);
                 mark_suspicious.apply();
             } else { // notification header
                 hash_bl0_ctrl(); // hash the source addr
