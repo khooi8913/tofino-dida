@@ -16,6 +16,10 @@ struct metadata_t {
     bit<16> index1;
     bit<16> index2;
 
+    bit<16> count0;
+    bit<16> count1;
+    bit<16> count2;
+
     bit<1> is_request;
     bit<1> is_ctrl;
     bit<1> is_attack;
@@ -365,13 +369,17 @@ control SwitchIngress(
 
     table mark_attack {
         key = {
-            ig_md.is_attack : exact;
+            // ig_md.is_attack : exact;
+            ig_md.count0 : range;
+            ig_md.count1 : range;
+            ig_md.count2 : range;
         }
         actions = {
             markAttack;
             unmarkAttack;
         }
         default_action = unmarkAttack();
+        // if all three counts fall within the range, then it is an attack
     }
   
     apply {
@@ -396,32 +404,36 @@ control SwitchIngress(
         } else if(ig_md.is_ctrl == 1) {
             // only compare counts with same tstamps (corner case)
             if((hdr.ctrl.tstamp_val == ig_md.current_tstamp)) {
-                bit<12> temp0;
-                bit<12> temp1;
-                bit<12> temp2;
+                // bit<12> temp0;
+                // bit<12> temp1;
+                // bit<12> temp2;
 
-                // have to cast to 12-bits (hw limitation)
-                temp0 = (bit<12>)sketch0_diff.execute(ig_md.index0);
-                if(temp0 > TOLERABLE_RANGE) {
-                    ig_md.exceed = ig_md.exceed + 1;
-                }
+                // // have to cast to 12-bits (hw limitation)
+                // temp0 = (bit<12>)sketch0_diff.execute(ig_md.index0);
+                // if(temp0 > TOLERABLE_RANGE) {
+                //     ig_md.exceed = ig_md.exceed + 1;
+                // }
 
-                temp1 = (bit<12>)sketch1_diff.execute(ig_md.index1);
-                if(temp1 > TOLERABLE_RANGE) {
-                    ig_md.exceed = ig_md.exceed + 1;
-                }
+                // temp1 = (bit<12>)sketch1_diff.execute(ig_md.index1);
+                // if(temp1 > TOLERABLE_RANGE) {
+                //     ig_md.exceed = ig_md.exceed + 1;
+                // }
 
-                temp2 = (bit<12>)sketch2_diff.execute(ig_md.index2);
-                if(temp2 > TOLERABLE_RANGE) {
-                    ig_md.exceed = ig_md.exceed + 1;
-                }
+                // temp2 = (bit<12>)sketch2_diff.execute(ig_md.index2);
+                // if(temp2 > TOLERABLE_RANGE) {
+                //     ig_md.exceed = ig_md.exceed + 1;
+                // }
 
-                if(ig_md.exceed == 3) {
-                    ig_md.is_attack = 1;
-                }
+                // if(ig_md.exceed == 3) {
+                //     ig_md.is_attack = 1;
+                // }
+                ig_md.count0 = sketch0_diff.execute(ig_md.index0);
+                ig_md.count1 = sketch1_diff.execute(ig_md.index1);
+                ig_md.count2 = sketch2_diff.execute(ig_md.index2);
+                mark_attack.apply();
             }
             
-            mark_attack.apply();
+            // mark_attack.apply();
         }
     }
 }

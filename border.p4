@@ -20,9 +20,9 @@ struct metadata_t {
 
     // counts
     bit<16> min_count;
-    bit<32> count0;
-    bit<32> count1;
-    bit<32> count2;
+    bit<16> count0;
+    bit<16> count1;
+    bit<16> count2;
 
     bit<1> is_response;
     bit<1> is_ctrl;
@@ -294,13 +294,17 @@ control SwitchIngress(
 
     table mark_suspicious {
         key = {
-            ig_md.is_suspicious : exact;
+            // ig_md.is_suspicious : exact;
+            ig_md.count0 : range;
+            ig_md.count1 : range;
+            ig_md.count2 : range;
         }
         actions = {
             markSuspicious;
             NoAction;
         }
         default_action = NoAction();
+        // if all three falls in the range, then it will trigger the mark suspicious function
     }
 
     table filter_traffic {
@@ -332,28 +336,31 @@ control SwitchIngress(
                 hash1_res();
                 hash2_res();
 
-                bit<12> temp0;
-                bit<12> temp1;
-                bit<12> temp2;
+                // bit<12> temp0;
+                // bit<12> temp1;
+                // bit<12> temp2;
 
-                temp0 = (bit<12>) sketch0_count.execute(ig_md.index0);
-                if(temp0 > SUSPICIOUS_THRESHOLD) {
-                    ig_md.exceed = ig_md.exceed + 1; 
-                }
+                // temp0 = (bit<12>) sketch0_count.execute(ig_md.index0);
+                // if(temp0 > SUSPICIOUS_THRESHOLD) {
+                //     ig_md.exceed = ig_md.exceed + 1; 
+                // }
 
-                temp1 = (bit<12>) sketch1_count.execute(ig_md.index1);
-                if(temp1 > SUSPICIOUS_THRESHOLD) {
-                    ig_md.exceed = ig_md.exceed + 1; 
-                }
+                // temp1 = (bit<12>) sketch1_count.execute(ig_md.index1);
+                // if(temp1 > SUSPICIOUS_THRESHOLD) {
+                //     ig_md.exceed = ig_md.exceed + 1; 
+                // }
 
-                temp2 = (bit<12>) sketch2_count.execute(ig_md.index2);
-                if(temp2 > SUSPICIOUS_THRESHOLD) {
-                    ig_md.exceed = ig_md.exceed + 1; 
-                }
+                // temp2 = (bit<12>) sketch2_count.execute(ig_md.index2);
+                // if(temp2 > SUSPICIOUS_THRESHOLD) {
+                //     ig_md.exceed = ig_md.exceed + 1; 
+                // }
 
-                if(ig_md.exceed == 3) {
-                    ig_md.is_suspicious = 1;
-                }
+                // if(ig_md.exceed == 3) {
+                //     ig_md.is_suspicious = 1;
+                // }
+                ig_md.count0 = sketch0_count.execute(ig_md.index0);
+                ig_md.count1 = sketch1_count.execute(ig_md.index1);
+                ig_md.count2 = sketch2_count.execute(ig_md.index2);
                 mark_suspicious.apply();
             } else { // notification header
                 hash_bl0_ctrl(); // hash the source addr
