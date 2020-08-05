@@ -135,7 +135,7 @@ control SwitchIngress(
             rv = 0;
 
             bit<16> temp;
-            if(ig_md.current_tstamp != val.second) {
+            if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
             val.second = ig_md.current_tstamp;
@@ -159,7 +159,7 @@ control SwitchIngress(
             rv = 0;
 
             bit<16> temp;
-            if(ig_md.current_tstamp != val.second) {
+            if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
             val.second = ig_md.current_tstamp;
@@ -183,7 +183,7 @@ control SwitchIngress(
             rv = 0;
 
             bit<16> temp;
-            if(ig_md.current_tstamp != val.second) {
+            if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
             val.second = ig_md.current_tstamp;
@@ -431,11 +431,11 @@ control SwitchIngress(
                 ig_md.count0 = sketch0_diff.execute(ig_md.index0);
                 ig_md.count1 = sketch1_diff.execute(ig_md.index1);
                 ig_md.count2 = sketch2_diff.execute(ig_md.index2);
-                // mark_attack.apply();
+                mark_attack.apply();
             }
         }
         // mark or unmark
-        mark_attack.apply();
+        // mark_attack.apply();
     }
 }
 

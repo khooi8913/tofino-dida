@@ -8,7 +8,7 @@
 #include "common/headers.p4"
 #include "common/util.p4"
 
-#define SUSPICIOUS_THRESHOLD 0x20
+// #define SUSPICIOUS_THRESHOLD 0x20
 
 struct metadata_t {
     // indexes
@@ -130,7 +130,7 @@ control SwitchIngress(
 
     RegisterAction<pair, _, bit<16>> (sketch0) sketch0_count = {
         void apply(inout pair val, out bit<16> rv) {
-            bit<16> temp;
+            // bit<16> temp;
 
             if(ig_md.current_tstamp != val.second) {
                 val.first = 0;
@@ -282,10 +282,10 @@ control SwitchIngress(
         ig_md.is_ctrl = 1;
     }
     
-    action markSuspicious() {
+    action markSuspicious(bit<16> SUSPICIOUS_THRESHOLD) {
         hdr.ctrl.setValid();
         hdr.ctrl.flag = 0xFFFF; // send this to access
-        hdr.ctrl.counter_val = ig_md.min_count; // "mean" for now
+        hdr.ctrl.counter_val = SUSPICIOUS_THRESHOLD; // "mean" for now
         // hdr.ctrl.counter_val = ig_md.count0;
         // TODO: how to find minimum?
         hdr.ctrl.tstamp_val = ig_md.current_tstamp;
@@ -357,55 +357,57 @@ control SwitchIngress(
 
         if(ig_md.is_response == 1 || ig_md.is_ctrl == 1) {
             if(ig_md.is_response ==1) { // response packets
-                hash0_res();
-                hash1_res();
-                hash2_res();
 
-                // bit<12> temp0;
-                // bit<12> temp1;
-                // bit<12> temp2;
-
-                // temp0 = (bit<12>) sketch0_count.execute(ig_md.index0);
-                // if(temp0 > SUSPICIOUS_THRESHOLD) {
-                //     ig_md.exceed = ig_md.exceed + 1; 
-                // }
-
-                // temp1 = (bit<12>) sketch1_count.execute(ig_md.index1);
-                // if(temp1 > SUSPICIOUS_THRESHOLD) {
-                //     ig_md.exceed = ig_md.exceed + 1; 
-                // }
-
-                // temp2 = (bit<12>) sketch2_count.execute(ig_md.index2);
-                // if(temp2 > SUSPICIOUS_THRESHOLD) {
-                //     ig_md.exceed = ig_md.exceed + 1; 
-                // }
-
-                // if(ig_md.exceed == 3) {
-                //     ig_md.is_suspicious = 1;
-                // }
+                hash_bl0_res(); // hash the source addr
+                ig_md.is_bl = bl0_read.execute(ig_md.bl0index);
+                filter_traffic.apply();
+                // terminate here if dropped
                 
-                ig_md.count0 = sketch0_count.execute(ig_md.index0);
-                ig_md.count1 = sketch1_count.execute(ig_md.index1);
-                ig_md.count2 = sketch2_count.execute(ig_md.index2);
+                if(ig_md.is_bl==0) {
+                    hash0_res();
+                    hash1_res();
+                    hash2_res();
 
-                // TODO: How to get the minimum?
-                // Hacky way to get "mean" for now
-                // Div,2 then Div,2 with MathUnit
-                ig_md.min_count = ig_md.count0 + ig_md.count1;
-                ig_md.min_count = min0_read.execute(0) + ig_md.count2;
-                ig_md.min_count = min1_read.execute(0);
+                    // bit<12> temp0;
+                    // bit<12> temp1;
+                    // bit<12> temp2;
 
-                mark_suspicious.apply();
+                    // temp0 = (bit<12>) sketch0_count.execute(ig_md.index0);
+                    // if(temp0 > SUSPICIOUS_THRESHOLD) {
+                    //     ig_md.exceed = ig_md.exceed + 1; 
+                    // }
+
+                    // temp1 = (bit<12>) sketch1_count.execute(ig_md.index1);
+                    // if(temp1 > SUSPICIOUS_THRESHOLD) {
+                    //     ig_md.exceed = ig_md.exceed + 1; 
+                    // }
+
+                    // temp2 = (bit<12>) sketch2_count.execute(ig_md.index2);
+                    // if(temp2 > SUSPICIOUS_THRESHOLD) {
+                    //     ig_md.exceed = ig_md.exceed + 1; 
+                    // }
+
+                    // if(ig_md.exceed == 3) {
+                    //     ig_md.is_suspicious = 1;
+                    // }
+                    
+                    ig_md.count0 = sketch0_count.execute(ig_md.index0);
+                    ig_md.count1 = sketch1_count.execute(ig_md.index1);
+                    ig_md.count2 = sketch2_count.execute(ig_md.index2);
+                    mark_suspicious.apply();
+                }
+                
             } else { // notification header
                 hash_bl0_ctrl(); // hash the source addr
                 bl0_write.execute(ig_md.bl0index); // write into BL
                 drop();
             }
-        } else { // normal traffic
-            hash_bl0_res(); // hash the source addr
-            ig_md.is_bl = bl0_read.execute(ig_md.bl0index);
-            filter_traffic.apply();
-        }
+        } 
+        // else { // normal traffic
+        //     hash_bl0_res(); // hash the source addr
+        //     ig_md.is_bl = bl0_read.execute(ig_md.bl0index);
+        //     filter_traffic.apply();
+        // }
 
     }
 }
