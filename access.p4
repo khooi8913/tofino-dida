@@ -21,17 +21,13 @@ struct metadata_t {
     bit<16> count2;
 
     bit<1> is_request;
-    bit<1> is_ctrl;
-    bit<1> is_attack;
-    bit<2> exceed;
 
-    bit<16> increment_val;
-    bit<16> current_tstamp;
+    int<16> current_tstamp;
 }
 
 struct pair {
-    bit<16>     first;
-    bit<16>     second;
+    int<16>     first;
+    int<16>     second;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,16 +106,16 @@ control SwitchIngress(
         inout ingress_intrinsic_metadata_for_deparser_t ig_dprsr_md,
         inout ingress_intrinsic_metadata_for_tm_t ig_tm_md) {
     
-    Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_zero;
-    Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_zero_zero;
-    Hash<bit<16>>(HashAlgorithm_t.CRC32) hash_one;
-    Hash<bit<16>>(HashAlgorithm_t.CRC32) hash_one_one;
-    Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_two;
-    Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_two_two;
+    Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_req_row0;
+    Hash<bit<16>>(HashAlgorithm_t.IDENTITY) hash_ctrl_row0;
+    Hash<bit<16>>(HashAlgorithm_t.CRC32) hash_req_row1;
+    Hash<bit<16>>(HashAlgorithm_t.CRC32) hash_ctrl_row1;
+    Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_req_row2;
+    Hash<bit<16>>(HashAlgorithm_t.CRC16) hash_ctrl_row2;
 
-    Register<pair,_>(32w65536) sketch0;
-    Register<pair,_>(32w65536) sketch1;
-    Register<pair,_>(32w65536) sketch2;
+    Register<pair,_>(32768) sketch0;
+    Register<pair,_>(32768) sketch1;
+    Register<pair,_>(32768) sketch2;
 
     RegisterAction<pair, bit<16>, void> (sketch0) sketch0_count = {
         void apply(inout pair val) {
@@ -130,11 +126,11 @@ control SwitchIngress(
             val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<pair, bit<16>, bit<16>> (sketch0) sketch0_diff = {
-        void apply(inout pair val, out bit<16> rv) {
+    RegisterAction<pair, bit<16>, int<16>> (sketch0) sketch0_diff = {
+        void apply(inout pair val, out int<16> rv) {
             rv = 0;
 
-            bit<16> temp;
+            int<16> temp;
             if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
@@ -154,11 +150,11 @@ control SwitchIngress(
             val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<pair, bit<16>, bit<16>> (sketch1) sketch1_diff = {
-        void apply(inout pair val, out bit<16> rv) {
+    RegisterAction<pair, bit<16>, int<16>> (sketch1) sketch1_diff = {
+        void apply(inout pair val, out int<16> rv) {
             rv = 0;
 
-            bit<16> temp;
+            int<16> temp;
             if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
@@ -178,11 +174,11 @@ control SwitchIngress(
             val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<pair, bit<16>, bit<16>> (sketch2) sketch2_diff = {
-        void apply(inout pair val, out bit<16> rv) {
+    RegisterAction<pair, bit<16>, int<16>> (sketch2) sketch2_diff = {
+        void apply(inout pair val, out int<16> rv) {
             rv = 0;
 
-            bit<16> temp;
+            int<16> temp;
             if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
@@ -195,7 +191,7 @@ control SwitchIngress(
 
     // Hash
     action hash0_ctrl() {
-        ig_md.index0 = hash_zero_zero.get(
+        ig_md.index0 = hash_ctrl_row0.get(
             {
                 hdr.ipv4.dst_addr,
                 hdr.ipv4.src_addr,
@@ -209,7 +205,7 @@ control SwitchIngress(
     }
 
     action hash0_req() {
-        ig_md.index0 = hash_zero.get(
+        ig_md.index0 = hash_req_row0.get(
             {
                 hdr.ipv4.src_addr,
                 hdr.ipv4.dst_addr,
@@ -223,7 +219,7 @@ control SwitchIngress(
     }
 
     action hash1_ctrl() {
-        ig_md.index1 = hash_one_one.get(
+        ig_md.index1 = hash_ctrl_row1.get(
             {
                 hdr.ipv4.dst_addr,
                 hdr.ipv4.src_addr,
@@ -237,7 +233,7 @@ control SwitchIngress(
     }
 
     action hash1_req() {
-        ig_md.index1 = hash_one.get(
+        ig_md.index1 = hash_req_row1.get(
             {
                 hdr.ipv4.src_addr,
                 hdr.ipv4.dst_addr,
@@ -252,7 +248,7 @@ control SwitchIngress(
 
 
     action hash2_ctrl() {
-        ig_md.index2 = hash_two_two.get(
+        ig_md.index2 = hash_ctrl_row2.get(
             {
                 hdr.ipv4.dst_addr,
                 hdr.ipv4.src_addr,
@@ -266,7 +262,7 @@ control SwitchIngress(
     }
 
     action hash2_req() {
-        ig_md.index2 = hash_two.get(
+        ig_md.index2 = hash_req_row2.get(
             {
                 hdr.ipv4.src_addr,
                 hdr.ipv4.dst_addr,
@@ -289,14 +285,10 @@ control SwitchIngress(
 
     action countRequests() {
         ig_md.is_request = 1;
-    }
-
-    action markPacket() {
-        ig_md.is_ctrl = 1;
-    }
+    }   
     
     action markAttack() {
-        hdr.ctrl.flag = 0xAAAA;
+        // hdr.ctrl.flag = 0xAC;
         hdr.ipv4.dst_addr = hdr.ctrl.source_rtr_id;
         hdr.ctrl.counter_val = 0;
         hdr.ctrl.tstamp_val = 0;
@@ -318,59 +310,8 @@ control SwitchIngress(
         default_action = NoAction();
     }
 
-    table mark_packet {
-        key = {
-            hdr.ipv4.frag_offset : exact;
-            hdr.udp.dst_port : exact;
-            hdr.ctrl.flag : exact;
-        }
-        actions = {
-            NoAction;
-            countRequests;
-            markPacket;
-        }
-        default_action = NoAction;
-    }
-
-    table compute_hash0 {
-        key = {
-            ig_md.is_ctrl : exact;
-        }
-        actions = {
-            hash0_req;
-            hash0_ctrl;
-            NoAction;
-        }
-        default_action = NoAction();
-    }
-
-    table compute_hash1 {
-        key = {
-            ig_md.is_ctrl : exact;
-        }
-        actions = {
-            hash1_req;
-            hash1_ctrl;
-            NoAction;
-        }
-        default_action = NoAction();
-    }
-
-    table compute_hash2 {
-        key = {
-            ig_md.is_ctrl : exact;
-        }
-        actions = {
-            hash2_req;
-            hash2_ctrl;
-            NoAction;
-        }
-        default_action = NoAction();
-    }
-
     table mark_attack {
         key = {
-            // ig_md.is_attack : exact;
             ig_md.count0 : range;
             ig_md.count1 : range;
             ig_md.count2 : range;
@@ -380,62 +321,58 @@ control SwitchIngress(
             unmarkAttack;
         }
         default_action = unmarkAttack();
+
         // if all three counts fall within the range, then it is an attack
+        const entries = {
+            (0x20 .. 0xFFFF, 0x20 .. 0xFFFF, 0x20 .. 0xFFFF) : markAttack();
+        }
+    }
+
+    table count_requests {
+         key = {
+            hdr.ipv4.frag_offset : exact;
+            hdr.udp.dst_port : exact;
+        }
+        actions = {
+            NoAction;
+            countRequests;
+        }
+        default_action = NoAction();
+        const entries = {
+            (0, 53) :  countRequests();
+        }
     }
   
     apply {
-        ig_md.current_tstamp = ig_intr_md.ingress_mac_tstamp[47:32];
+        ig_md.current_tstamp = (int<16>)ig_intr_md.ingress_mac_tstamp[47:32];
         ipv4_forward.apply();
 
-        // differentiate between requests and responses (with control header)
-        mark_packet.apply();
-        
-        // init val
-        ig_md.is_attack = 0; 
-        ig_md.exceed = 0; 
+        if(!hdr.ctrl.isValid()){
+            // normal traffic
+            hash0_req();
+            hash1_req();
+            hash2_req();
 
-        compute_hash0.apply();
-        compute_hash1.apply();
-        compute_hash2.apply();
-
-        if(ig_md.is_request == 1) {
-            sketch0_count.execute(ig_md.index0); 
-            sketch1_count.execute(ig_md.index1); 
-            sketch2_count.execute(ig_md.index2); 
-        } else if(ig_md.is_ctrl == 1) {
-            // only compare counts with same tstamps (corner case)
+            count_requests.apply();
+            if(ig_md.is_request == 1){
+                sketch0_count.execute(ig_md.index0); 
+                sketch1_count.execute(ig_md.index1); 
+                sketch2_count.execute(ig_md.index2); 
+            }
+        } else {    
+            // marked suspicious traffic
+            hash0_ctrl();
+            hash1_ctrl();
+            hash2_ctrl();
+            
+            // only compare counts with the same tstamps 
             if((hdr.ctrl.tstamp_val == ig_md.current_tstamp)) {
-                // bit<12> temp0;
-                // bit<12> temp1;
-                // bit<12> temp2;
-
-                // // have to cast to 12-bits (hw limitation)
-                // temp0 = (bit<12>)sketch0_diff.execute(ig_md.index0);
-                // if(temp0 > TOLERABLE_RANGE) {
-                //     ig_md.exceed = ig_md.exceed + 1;
-                // }
-
-                // temp1 = (bit<12>)sketch1_diff.execute(ig_md.index1);
-                // if(temp1 > TOLERABLE_RANGE) {
-                //     ig_md.exceed = ig_md.exceed + 1;
-                // }
-
-                // temp2 = (bit<12>)sketch2_diff.execute(ig_md.index2);
-                // if(temp2 > TOLERABLE_RANGE) {
-                //     ig_md.exceed = ig_md.exceed + 1;
-                // }
-
-                // if(ig_md.exceed == 3) {
-                //     ig_md.is_attack = 1;
-                // }
-                ig_md.count0 = sketch0_diff.execute(ig_md.index0);
-                ig_md.count1 = sketch1_diff.execute(ig_md.index1);
-                ig_md.count2 = sketch2_diff.execute(ig_md.index2);
+                ig_md.count0 = (bit<16>) sketch0_diff.execute(ig_md.index0);
+                ig_md.count1 = (bit<16>) sketch1_diff.execute(ig_md.index1);
+                ig_md.count2 = (bit<16>) sketch2_diff.execute(ig_md.index2);
                 mark_attack.apply();
             }
         }
-        // mark or unmark
-        // mark_attack.apply();
     }
 }
 

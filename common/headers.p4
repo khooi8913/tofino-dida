@@ -155,9 +155,8 @@ header gre_h {
 // Control Header
 header ctrl_t {
     bit<32>             source_rtr_id;
-    bit<16>             flag;
-    bit<16>             counter_val;
-    bit<16>             tstamp_val;
+    int<16>             counter_val;
+    int<16>             tstamp_val;
 }
 
 struct header_t {
