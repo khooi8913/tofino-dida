@@ -362,7 +362,7 @@ control SwitchIngress(
                 ig_md.diff1 = ig_md.count2 - ig_md.count1;
                 ig_md.diff2 = ig_md.count2 - ig_md.count0;
             }
-            @stage(5){
+            @stage(5){                    
                 ig_md.cmp0 = min0_get.execute(0);
                 ig_md.cmp1 = min1_get.execute(0);
                 ig_md.cmp2 = min2_get.execute(0);
