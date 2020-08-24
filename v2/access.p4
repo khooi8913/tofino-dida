@@ -8,26 +8,25 @@
 #include "common/headers.p4"
 #include "common/util.p4"
 
-#define TOLERABLE_RANGE 0x14
-
 struct metadata_t {
     // indexes
     bit<16> index0;
     bit<16> index1;
     bit<16> index2;
 
+    bit<12> suspicious_count;
     bit<16> count0;
     bit<16> count1;
     bit<16> count2;
 
     bit<1> is_request;
 
-    int<16> current_tstamp;
+    bit<16> current_tstamp;
 }
 
 struct pair {
-    int<16>     first;
-    int<16>     second;
+    bit<16>     first;
+    bit<16>     second;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,18 +125,22 @@ control SwitchIngress(
             val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<pair, bit<16>, int<16>> (sketch0) sketch0_diff = {
-        void apply(inout pair val, out int<16> rv) {
+    RegisterAction<pair, bit<16>, bit<16>> (sketch0) sketch0_diff = {
+        void apply(inout pair val, out bit<16> rv) {
             rv = 0;
 
-            int<16> temp;
+            bit<16> temp;
             if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
             val.second = ig_md.current_tstamp;
-            
+
             temp = hdr.ctrl.counter_val - val.first;
-            rv = temp;
+            if(val.first > hdr.ctrl.counter_val){
+                rv = 0;
+            } else {
+                rv = temp;
+            }
         }
     };
 
@@ -150,18 +153,22 @@ control SwitchIngress(
             val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<pair, bit<16>, int<16>> (sketch1) sketch1_diff = {
-        void apply(inout pair val, out int<16> rv) {
+    RegisterAction<pair, bit<16>, bit<16>> (sketch1) sketch1_diff = {
+        void apply(inout pair val, out bit<16> rv) {
             rv = 0;
 
-            int<16> temp;
+            bit<16> temp;
             if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
             val.second = ig_md.current_tstamp;
             
             temp = hdr.ctrl.counter_val - val.first;
-            rv = temp;
+            if(val.first > hdr.ctrl.counter_val){
+                rv = 0;
+            } else {
+                rv = temp;
+            }
         }
     };
 
@@ -174,18 +181,22 @@ control SwitchIngress(
             val.second = ig_md.current_tstamp;
         }
     };
-    RegisterAction<pair, bit<16>, int<16>> (sketch2) sketch2_diff = {
-        void apply(inout pair val, out int<16> rv) {
+    RegisterAction<pair, bit<16>, bit<16>> (sketch2) sketch2_diff = {
+        void apply(inout pair val, out bit<16> rv) {
             rv = 0;
 
-            int<16> temp;
+            bit<16> temp;
             if(ig_md.current_tstamp >= val.second -1) {
                 val.first = 0;
             }
             val.second = ig_md.current_tstamp;
             
             temp = hdr.ctrl.counter_val - val.first;
-            rv = temp;
+            if(val.first > hdr.ctrl.counter_val){
+                rv = 0;
+            } else {
+                rv = temp;
+            }
         }
     };
 
@@ -288,7 +299,6 @@ control SwitchIngress(
     }   
     
     action markAttack() {
-        // hdr.ctrl.flag = 0xAC;
         hdr.ipv4.dst_addr = hdr.ctrl.source_rtr_id;
         hdr.ctrl.counter_val = 0;
         hdr.ctrl.tstamp_val = 0;
@@ -344,7 +354,7 @@ control SwitchIngress(
     }
   
     apply {
-        ig_md.current_tstamp = (int<16>)ig_intr_md.ingress_mac_tstamp[47:32];
+        ig_md.current_tstamp = (bit<16>)ig_intr_md.ingress_mac_tstamp[47:32];
         ipv4_forward.apply();
 
         if(!hdr.ctrl.isValid()){
@@ -367,7 +377,7 @@ control SwitchIngress(
             
             // only compare counts with the same tstamps 
             if((hdr.ctrl.tstamp_val == ig_md.current_tstamp)) {
-                ig_md.count0 = (bit<16>) sketch0_diff.execute(ig_md.index0);
+                ig_md.count0 = (bit<16>) sketch0_diff.execute(ig_md.index0); 
                 ig_md.count1 = (bit<16>) sketch1_diff.execute(ig_md.index1);
                 ig_md.count2 = (bit<16>) sketch2_diff.execute(ig_md.index2);
                 mark_attack.apply();

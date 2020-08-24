@@ -17,28 +17,20 @@ struct metadata_t {
 
     // counts
     bit<16> min_count;
-    int<16> count0;
-    int<16> count1;
-    int<16> count2;
-
-    // diffs
-    int<16> diff0;
-    int<16> diff1;
-    int<16> diff2;
-
-    bit<1> cmp0;
-    bit<1> cmp1;
-    bit<1> cmp2;
+    bit<16> suspicious_count;
+    bit<16> count0;
+    bit<16> count1;
+    bit<16> count2;
 
     bit<1> is_response;
     bit<1> is_bl;
 
-    int<16> current_tstamp;
+    bit<16> current_tstamp;
 }
 
 struct pair {
-    int<16>     first;
-    int<16>     second;
+    bit<16>     first;
+    bit<16>     second;
 }
 
 
@@ -128,8 +120,8 @@ control SwitchIngress(
     Register<pair,_>(32768) sketch1;
     Register<pair,_>(32768) sketch2;
 
-    RegisterAction<pair, _, int<16>> (sketch0) sketch0_count = {
-        void apply(inout pair val, out int<16> rv) {
+    RegisterAction<pair, _, bit<16>> (sketch0) sketch0_count = {
+        void apply(inout pair val, out bit<16> rv) {
             if(ig_md.current_tstamp != val.second) {
                 val.first = 0;
             }
@@ -140,8 +132,8 @@ control SwitchIngress(
         }
     };
 
-    RegisterAction<pair, _, int<16>> (sketch1) sketch1_count = {
-        void apply(inout pair val, out int<16> rv) {
+    RegisterAction<pair, _, bit<16>> (sketch1) sketch1_count = {
+        void apply(inout pair val, out bit<16> rv) {
             if(ig_md.current_tstamp != val.second) {
                 val.first = 0;
             }
@@ -152,8 +144,8 @@ control SwitchIngress(
         }
     };
 
-    RegisterAction<pair, _, int<16>> (sketch2) sketch2_count = {
-        void apply(inout pair val, out int<16> rv) {
+    RegisterAction<pair, _, bit<16>> (sketch2) sketch2_count = {
+        void apply(inout pair val, out bit<16> rv) {
             if(ig_md.current_tstamp != val.second) {
                 val.first = 0;
             }
@@ -179,33 +171,10 @@ control SwitchIngress(
         }
     };
 
-    Register<int<16>,_>(1) min0;
-    RegisterAction<int<16>, _, bit<1>> (min0) min0_get = {
-        void apply(inout int<16> val, out bit<1> rv) {
-            rv = 0;
-            if(ig_md.diff0 > 0){
-                rv = 1;
-            }
-        }
-    };
-
-    Register<int<16>,_>(1) min1;
-    RegisterAction<bit<16>, _, bit<1>> (min1) min1_get = {
-        void apply(inout bit<16> val, out bit<1> rv) {
-            rv = 0;
-            if(ig_md.diff1 > 0){
-                rv = 1;
-            }
-        }
-    };
-
-    Register<int<16>,_>(1) min2;
-    RegisterAction<int<16>, _, bit<1>> (min2) min2_get = {
-        void apply(inout int<16> val, out bit<1> rv) {
-            rv = 0;
-            if(ig_md.diff2 > 0){
-                rv = 1;
-            }
+    Register<bit<16>,_>(1) threshold;
+    RegisterAction<bit<16>, _, bit<16>> (threshold) threshold_get = {
+        void apply(inout bit<16> val, out bit<16> rv) {
+            rv = val;
         }
     };
 
@@ -274,7 +243,7 @@ control SwitchIngress(
     
     action markSuspicious() {
         hdr.ctrl.setValid();
-        hdr.ctrl.counter_val = (int<16>)ig_md.min_count; 
+        hdr.ctrl.counter_val = threshold_get.execute(0); 
         hdr.ctrl.tstamp_val = ig_md.current_tstamp;
         hdr.ctrl.source_rtr_id = 32w0xc0a80101; // router id is hard coded for now
     }
@@ -291,18 +260,20 @@ control SwitchIngress(
     }
 
     table mark_suspicious {
-        key = {
-            ig_md.min_count : range;
+         key = {
+            ig_md.count0 : range;
+            ig_md.count1 : range;
+            ig_md.count2 : range;
         }
         actions = {
             markSuspicious;
             NoAction;
         }
-        // if the value falls in the range, then it will trigger the mark suspicious function
-        // this can be modified by the control plane
-        default_action = NoAction();
+        default_action = markSuspicious();
+
+        // if all three counts fall within the range, then it is an attack
         const entries = {
-            0x20 .. 0xFFFF : markSuspicious();
+            (0x20 .. 0xFFFF, 0x20 .. 0xFFFF, 0x20 .. 0xFFFF) : markSuspicious();
         }
     }
 
@@ -334,7 +305,7 @@ control SwitchIngress(
     }
   
     apply {
-        ig_md.current_tstamp = (int<16>) ig_intr_md.ingress_mac_tstamp[47:32];
+        ig_md.current_tstamp = (bit<16>) ig_intr_md.ingress_mac_tstamp[47:32];
         ipv4_forward.apply();
 
         hash_src_addr(); // hash the source addr
@@ -352,30 +323,9 @@ control SwitchIngress(
                 hash1_res();
                 hash2_res();
 
-            @stage(3){
                 ig_md.count0 = sketch0_count.execute(ig_md.index0);
                 ig_md.count1 = sketch1_count.execute(ig_md.index1);
                 ig_md.count2 = sketch2_count.execute(ig_md.index2);
-            }
-            @stage(4){
-                ig_md.diff0 = ig_md.count1 - ig_md.count0;
-                ig_md.diff1 = ig_md.count2 - ig_md.count1;
-                ig_md.diff2 = ig_md.count2 - ig_md.count0;
-            }
-            @stage(5){                    
-                ig_md.cmp0 = min0_get.execute(0);
-                ig_md.cmp1 = min1_get.execute(0);
-                ig_md.cmp2 = min2_get.execute(0);
-            }
-            
-                if(ig_md.cmp0 ==1 && ig_md.cmp2 == 1){
-                    ig_md.min_count = (bit<16>) ig_md.count0;
-                } else if(ig_md.cmp0 ==0 && ig_md.cmp2 == 1){
-                    ig_md.min_count = (bit<16>) ig_md.count1;
-                }else {
-                    ig_md.min_count = (bit<16>) ig_md.count2;
-                }
-           
                 mark_suspicious.apply();
             }
         } else {

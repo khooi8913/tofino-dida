@@ -155,8 +155,16 @@ header gre_h {
 // Control Header
 header ctrl_t {
     bit<32>             source_rtr_id;
-    int<16>             counter_val;
-    int<16>             tstamp_val;
+    bit<16>             counter_val;
+    bit<16>             tstamp_val;
+    // bit<4>              _padding;
+}
+
+// CPU Report Header
+header cpu_t {
+    bit<16>             count0;
+    bit<16>             count1;
+    bit<16>             count2;
 }
 
 struct header_t {
@@ -167,6 +175,7 @@ struct header_t {
     tcp_h tcp;
     udp_h udp;
     ctrl_t ctrl;
+    cpu_t cpu;
     // Add more headers here.
 }
 
