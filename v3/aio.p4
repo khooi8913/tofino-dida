@@ -237,6 +237,7 @@ control Ingress(
 
     action drop() {
         ig_dprsr_md.drop_ctl = 0x0;    // drop packet
+        exit;
     }
 
     action forward(PortId_t port) {
@@ -309,7 +310,7 @@ control Ingress(
     apply {
         curr_ts = (window_t) ig_intr_md.ingress_mac_tstamp[47:32];
         if(hdr.ipv4.isValid()) {
-             ft_0 = min(hdr.ipv4.src_addr, hdr.ipv4.dst_addr);
+            ft_0 = min(hdr.ipv4.src_addr, hdr.ipv4.dst_addr);
             ft_1 = max(hdr.ipv4.src_addr, hdr.ipv4.dst_addr);
             ft_2 = hdr.ipv4.protocol;
             ft_3 = min(meta.src_port, meta.dst_port);
