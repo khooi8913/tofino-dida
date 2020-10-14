@@ -126,7 +126,10 @@ parser IngressParser(packet_in        pkt,
 
     state parse_ethernet {
         pkt.extract(hdr.ethernet);
-        transition accept;
+        transition select(hdr.ethernet.ether_type) {
+            ETHERTYPE_IPV4 : parse_ipv4;
+            default : accept;
+        }
     }
 
     state parse_ipv4 {
@@ -305,34 +308,35 @@ control Ingress(
 
     apply {
         curr_ts = (window_t) ig_intr_md.ingress_mac_tstamp[47:32];
+        if(hdr.ipv4.isValid()) {
+             ft_0 = min(hdr.ipv4.src_addr, hdr.ipv4.dst_addr);
+            ft_1 = max(hdr.ipv4.src_addr, hdr.ipv4.dst_addr);
+            ft_2 = hdr.ipv4.protocol;
+            ft_3 = min(meta.src_port, meta.dst_port);
+            ft_4 = max(meta.src_port, meta.dst_port);
 
-        ft_0 = min(hdr.ipv4.src_addr, hdr.ipv4.dst_addr);
-        ft_1 = max(hdr.ipv4.src_addr, hdr.ipv4.dst_addr);
-        ft_2 = hdr.ipv4.protocol;
-        ft_3 = min(meta.src_port, meta.dst_port);
-        ft_4 = max(meta.src_port, meta.dst_port);
+            index = hash_index.get(
+                {
+                    ft_0,
+                    ft_1,
+                    ft_2,
+                    ft_3,
+                    ft_4
+                }
+            );
 
-        index = hash_index.get(
-            {
-                ft_0,
-                ft_1,
-                ft_2,
-                ft_3,
-                ft_4
+            ipv4_forward.apply();
+            mark_traffic.apply();
+
+            if (is_request) {
+                sketch0_req.execute(index[31:16]);
+                sketch1_req.execute(index[15:0]);    
+            } else {    // response
+                count_r0 = sketch0_res.execute(index[31:16]);
+                count_r1 = sketch1_res.execute(index[15:0]);
+                count = min(count_r0, count_r1);
+                threshold.apply();
             }
-        );
-
-        ipv4_forward.apply();
-        mark_traffic.apply();
-
-        if (is_request) {
-            sketch0_req.execute(index[31:16]);
-            sketch1_req.execute(index[15:0]);    
-        } else {    // response
-            count_r0 = sketch0_res.execute(index[31:16]);
-            count_r1 = sketch1_res.execute(index[15:0]);
-            count = min(count_r0, count_r1);
-            threshold.apply();
         }
         
         // we do not need egress processing for now
