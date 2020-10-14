@@ -326,14 +326,14 @@ control Ingress(
         mark_traffic.apply();
 
         if (is_request) {
-            count_r0 = sketch0_req.execute(index[31:16]);
-            count_r1 = sketch1_req.execute(index[15:0]);    
+            sketch0_req.execute(index[31:16]);
+            sketch1_req.execute(index[15:0]);    
         } else {    // response
             count_r0 = sketch0_res.execute(index[31:16]);
             count_r1 = sketch1_res.execute(index[15:0]);
+            count = min(count_r0, count_r1);
+            threshold.apply();
         }
-        count = min(count_r0, count_r1);
-        threshold.apply();
         
         // we do not need egress processing for now
         ig_tm_md.bypass_egress = 1;
