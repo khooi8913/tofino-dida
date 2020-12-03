@@ -141,6 +141,7 @@ parser IngressParser(packet_in        pkt,
         transition select(hdr.ipv4.protocol) {
             IP_PROTO_TCP    : parse_tcp;
             IP_PROTO_UDP    : parse_udp;
+            default : accept;
         }
     }
 

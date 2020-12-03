@@ -1,3 +1,6 @@
 access/
 border/
 aio/
+venv/
+.vscode/
+.env
