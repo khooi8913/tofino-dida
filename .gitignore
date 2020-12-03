@@ -4,3 +4,4 @@ aio/
 venv/
 .vscode/
 .env
+*.pyc
