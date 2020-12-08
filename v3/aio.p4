@@ -283,8 +283,8 @@ control Ingress(
         default_action = NoAction();
         const entries = {
             // DNS Reflection
-            (0, 17, 0, 0, 53, _) :  count_request();
-            (0, 17, 0, 0, _, 53) :  count_response();
+            (0, 17, 0, 0, _, 53) :  count_request();
+            (0, 17, 0, 0, 53, _) :  count_response();
             // TCP SYN-ACK Reflection
             (0, 6, 0, 1, _, _) :  count_request();
             (0, 6, 1, 1, _, _) :  count_response();
