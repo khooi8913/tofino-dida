@@ -43,11 +43,15 @@ class AioTest(BfRuntimeTest):
         # pkt = simple_tcp_packet(pktlen=86, ip_dst="192.168.1.1", ip_ihl=5, with_tcp_chksum=True)
         # pkt[IP].chksum = 63566
         # pkt[TCP].dataofs = 5L
-        pkt = simple_ip_packet(ip_dst="192.168.1.1")
-        send_packet(self, 2, pkt)
+        pkt = simple_ip_packet(pktlen=86, ip_dst="192.168.1.1", ip_ihl=5)
+        # pkt = simple_icmp_packet(ip_dst="192.168.1.1")
+        pkt[IP].chksum = 63586
+        pkt[IP].len = 72
+        send_packet(self, 13, pkt)
 
         expected_pkt = copy.deepcopy(pkt)
         expected_pkt[IP].ttl = pkt[IP].ttl - 1
+
         print("Expecting the packet on port {}".format(1))
 
         verify_packet(self, expected_pkt, 1, timeout=2)
