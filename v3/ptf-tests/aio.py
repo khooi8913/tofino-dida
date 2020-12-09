@@ -33,29 +33,56 @@ class AioTest(BfRuntimeTest):
         self.tables = [self.ipv4_forward]
 
     def runTest(self):
-        key = self.ipv4_forward.make_key([gc.KeyTuple('hdr.ipv4.dst_addr', "192.168.1.1")])
-        data = self.ipv4_forward.make_data([gc.DataTuple('port', 1)], "Ingress.forward")
+        # key = self.ipv4_forward.make_key([gc.KeyTuple('hdr.ipv4.dst_addr', "192.168.1.1")])
+        # data = self.ipv4_forward.make_data([gc.DataTuple('port', 1)], "Ingress.forward")
 
-        self.ipv4_forward.entry_add(self.dev_tgt, [key], [data])
-        print("Added an entry to ipv4_forward: {} --> send({})".format("192.168.1.1", 1))
+        # self.ipv4_forward.entry_add(self.dev_tgt, [key], [data])
+        # print("Added an entry to ipv4_forward: {} --> send({})".format("192.168.1.1", 1))
 
         # Create a test packet
         # pkt = simple_tcp_packet(pktlen=86, ip_dst="192.168.1.1", ip_ihl=5, with_tcp_chksum=True)
         # pkt[IP].chksum = 63566
         # pkt[TCP].dataofs = 5L
-        pkt = simple_ip_packet(pktlen=86, ip_dst="192.168.1.1", ip_ihl=5)
+        pkt = simple_udp_packet(ip_dst="192.168.1.1")
+        pkt[UDP].dport = 53
+        pkt[UDP].sport = 8888
+        send_packet(self, 0, pkt)
+
+        pkt[UDP].sport = 53
+        pkt[UDP].dport = 8888
+        send_packet(self, 0, pkt)
+
+        pkt[UDP].dport = 53
+        pkt[UDP].sport = 8888
+        send_packet(self, 0, pkt)
+
+        # pkt = simple_udp_packet(ip_dst="192.168.1.1")
+        pkt[UDP].sport = 53
+        pkt[UDP].dport = 8888
+        send_packet(self, 0, pkt)
+
+        pkt[UDP].sport = 53
+        pkt[UDP].dport = 8888
+        send_packet(self, 0, pkt)
+
+        pkt[UDP].sport = 53
+        pkt[UDP].dport = 8888
+        send_packet(self, 0, pkt)
+        
+        # print(dir(pkt[UDP]))
+        # print(pkt.show())
         # pkt = simple_icmp_packet(ip_dst="192.168.1.1")
-        pkt[IP].chksum = 63586
-        pkt[IP].len = 72
-        send_packet(self, 13, pkt)
+        # pkt[IP].chksum = 63586
+        # pkt[IP].len = 72
+        
 
-        expected_pkt = copy.deepcopy(pkt)
-        expected_pkt[IP].ttl = pkt[IP].ttl - 1
+        # expected_pkt = copy.deepcopy(pkt)
+        # expected_pkt[IP].ttl = pkt[IP].ttl - 1
 
-        print("Expecting the packet on port {}".format(1))
+        # print("Expecting the packet on port {}".format(1))
 
-        verify_packet(self, expected_pkt, 1, timeout=2)
-        print("Packet received on port {}".format(1))
+        # verify_packet(self, expected_pkt, 1, timeout=2)
+        # print("Packet received on port {}".format(1))
 
 
     def cleanUp(self):
@@ -76,5 +103,5 @@ class AioTest(BfRuntimeTest):
             print("Error cleaning up: {}".format(e))
 
     def tearDown(self):
-        self.cleanUp()
+        # self.cleanUp()
         BfRuntimeTest.tearDown(self)
