@@ -193,8 +193,9 @@ control Ingress(
         void apply(inout reg_pair val, out count_t rv) {
             if(curr_ts != val.window) {
                 val.count = 0;
+            } else {
+                val.count = val.count |-| 1;
             }
-            val.count = val.count |-| 1;
             val.window = curr_ts;
             rv = val.count;
         }
@@ -202,9 +203,10 @@ control Ingress(
     RegisterAction<reg_pair, _, count_t> (sketch0) sketch0_res = {
         void apply(inout reg_pair val, out count_t rv) {
             if(curr_ts != val.window) {
-                val.count = 0;
+                val.count = 1;
+            } else {
+                val.count = val.count |+| 1;
             }
-            val.count = val.count |+| 1;
             val.window = curr_ts;
             rv = val.count;
         }
@@ -213,8 +215,9 @@ control Ingress(
         void apply(inout reg_pair val, out count_t rv) {
             if(curr_ts != val.window) {
                 val.count = 0;
+            } else {
+                val.count = val.count |-| 1;
             }
-            val.count = val.count |-| 1;
             val.window = curr_ts;
             rv = val.count;
         }
@@ -222,18 +225,19 @@ control Ingress(
     RegisterAction<reg_pair, _, count_t> (sketch1) sketch1_res = {
         void apply(inout reg_pair val, out count_t rv) {
             if(curr_ts != val.window) {
-                val.count = 0;
+                val.count = 1;
+            } else {
+                val.count = val.count |+| 1;
             }
-            val.count = val.count |+| 1;
             val.window = curr_ts;
             rv = val.count;
         }
     };
 
-    action send_to_cpu(){
+    action send_to_cpu(PortId_t port){
         hdr.cpu.setValid();
         hdr.cpu.count = count;
-        ig_tm_md.ucast_egress_port = 320; // send to cpu
+        ig_tm_md.ucast_egress_port = port; // send to cpu
     }
 
     action drop() {
@@ -281,14 +285,14 @@ control Ingress(
             count_response;
         }
         default_action = NoAction();
-        const entries = {
-            // DNS Reflection
-            (0x0, 0x11, 0x0, 0x0, _, 0x35) :  count_request();
-            (0x0, 0x11, 0x0, 0x0, 0x35, _) :  count_response();
-            // TCP SYN-ACK Reflection
-            // (0, 6, 0, 1, _, _) :  count_request();
-            // (0, 6, 1, 1, _, _) :  count_response();
-        }
+        // const entries = {
+        //     // DNS Reflection
+        //     // (0x0, 0x11, 0x0, 0x0, _, 0x35) :  count_request();
+        //     // (0x0, 0x11, 0x0, 0x0, 0x35, _) :  count_response();
+        //     // TCP SYN-ACK Reflection
+        //     // (0, 6, 0, 1, _, _) :  count_request();
+        //     // (0, 6, 1, 1, _, _) :  count_response();
+        // }
         size = 32;
     }
 
@@ -301,10 +305,9 @@ control Ingress(
             NoAction;
         }
         default_action = NoAction();
-
-        const entries = {
-            0x20 .. 0xFFFF : send_to_cpu();
-        }
+        // const entries = {
+        //     0x20 .. 0xFFFF : send_to_cpu();
+        // }
         size = 1;
     }
 
@@ -328,16 +331,17 @@ control Ingress(
             );
 
             ipv4_forward.apply();
-            mark_traffic.apply();
-
-            if (is_request) {
-                sketch0_req.execute(index[31:16]);
-                sketch1_req.execute(index[15:0]);    
-            } else {    // response
-                count_r0 = sketch0_res.execute(index[31:16]);
-                count_r1 = sketch1_res.execute(index[15:0]);
-                count = min(count_r0, count_r1);
-                threshold.apply();
+            if(mark_traffic.apply().hit) {
+                if (is_request) {
+                    count_r0 = sketch0_req.execute((bit<16>)index[30:16]);
+                    count_r1 = sketch1_req.execute((bit<16>)index[14:0]);    
+                } else {    // response
+                    count_r0 = sketch0_res.execute((bit<16>)index[30:16]);
+                    count_r1 = sketch1_res.execute((bit<16>)index[14:0]);
+                    count = min(count_r0, count_r1);
+                    // count = count_r0;
+                    threshold.apply();
+                }
             }
         }
         
