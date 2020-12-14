@@ -27,6 +27,10 @@ struct reg_pair {
     window_t    window;
 }
 
+struct l2_digest_t {
+    ipv4_addr_t src_addr;
+}
+
 /*************************************************************************
  ***********************  H E A D E R S  *********************************
  *************************************************************************/
@@ -237,9 +241,10 @@ control Ingress(
     };
 
     action send_to_cpu(PortId_t port){
-        hdr.cpu.setValid();
-        hdr.cpu.count = count;
-        ig_tm_md.ucast_egress_port = port; // send to cpu
+        // hdr.cpu.setValid();
+        // hdr.cpu.count = count;
+        // ig_tm_md.ucast_egress_port = port; // send to cpu
+        ig_dprsr_md.digest_type = 0x03;
     }
 
     action drop() {
@@ -379,7 +384,13 @@ control IngressDeparser(packet_out pkt,
     /* Intrinsic */
     in    ingress_intrinsic_metadata_for_deparser_t  ig_dprsr_md)
 {
+
+    Digest <l2_digest_t>() l2_digest;
+
     apply {
+        if(ig_dprsr_md.digest_type == 0x03) {
+            l2_digest.pack({hdr.ipv4.src_addr});
+        }
         pkt.emit(hdr);
     }
 }
