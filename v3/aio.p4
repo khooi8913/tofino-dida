@@ -186,6 +186,8 @@ control Ingress(
     count_t     count_r0 = 0;
     count_t     count_r1 = 0;
 
+    DirectCounter<bit<32>>(CounterType_t.PACKETS) pkt_ctr;
+
     Hash<bit<32>>(HashAlgorithm_t.CRC32) hash_index;
     Register<reg_pair,_>(32768) sketch0;
     Register<reg_pair,_>(32768) sketch1;
@@ -243,6 +245,25 @@ control Ingress(
     action drop() {
         ig_dprsr_md.drop_ctl = 0x0;    // drop packet
         exit;
+    }
+
+    action just_count() {
+        pkt_ctr.count();
+    }
+
+    table count_mac {
+        key = {
+            hdr.ethernet.src_addr : exact;
+        }
+        actions = {
+            just_count;
+        }
+        const entries = {
+            0x222222000001 : just_count();
+            0x000000000001 : just_count();
+        }
+        counters = pkt_ctr;
+        size = 2;
     }
 
     action forward(PortId_t port) {
@@ -330,6 +351,7 @@ control Ingress(
                 }
             );
 
+            count_mac.apply();
             ipv4_forward.apply();
             if(mark_traffic.apply().hit) {
                 if (is_request) {
