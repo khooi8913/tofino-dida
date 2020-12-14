@@ -27,6 +27,7 @@ struct reg_pair {
     window_t    window;
 }
 
+const bit<3> ATTACK_DIGEST = 0x03;
 struct l2_digest_t {
     ipv4_addr_t src_addr;
 }
@@ -85,10 +86,10 @@ header udp_h {
     bit<16> checksum;
 }
 
-header cpu_h {
-    count_t _padding;
-    count_t count;
-}
+// header cpu_h {
+//     count_t _padding;
+//     count_t count;
+// }
 
 /*************************************************************************
  **************  I N G R E S S   P R O C E S S I N G   *******************
@@ -101,7 +102,7 @@ struct my_ingress_headers_t {
     ipv4_h  ipv4;
     tcp_h   tcp;
     udp_h   udp;
-    cpu_h   cpu;
+    // cpu_h   cpu;
 }
 
     /******  G L O B A L   I N G R E S S   M E T A D A T A  *********/
@@ -240,11 +241,8 @@ control Ingress(
         }
     };
 
-    action send_to_cpu(PortId_t port){
-        // hdr.cpu.setValid();
-        // hdr.cpu.count = count;
-        // ig_tm_md.ucast_egress_port = port; // send to cpu
-        ig_dprsr_md.digest_type = 0x03;
+    action send_to_cpu(){
+        ig_dprsr_md.digest_type = ATTACK_DIGEST;
     }
 
     action drop() {
@@ -388,7 +386,7 @@ control IngressDeparser(packet_out pkt,
     Digest <l2_digest_t>() l2_digest;
 
     apply {
-        if(ig_dprsr_md.digest_type == 0x03) {
+        if(ig_dprsr_md.digest_type == ATTACK_DIGEST) {
             l2_digest.pack({hdr.ipv4.src_addr});
         }
         pkt.emit(hdr);
