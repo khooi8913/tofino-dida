@@ -257,13 +257,11 @@ control Ingress(
         }
         actions = {
             just_count;
+            @defaultonly NoAction;
         }
-        const entries = {
-            0x222222000001 : just_count();
-            0x000000000001 : just_count();
-        }
+        default_action = NoAction();
         counters = pkt_ctr;
-        size = 2;
+        size = 1024;
     }
 
     action forward(PortId_t port) {
