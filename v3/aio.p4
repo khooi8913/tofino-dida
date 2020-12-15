@@ -27,7 +27,7 @@ struct reg_pair {
     window_t    window;
 }
 
-const bit<3> ATTACK_DIGEST = 0x03;
+const bit<3> AR_ATTACK_DIGEST = 0x03;
 struct l2_digest_t {
     ipv4_addr_t src_addr;
 }
@@ -85,11 +85,6 @@ header udp_h {
     bit<16> hdr_length;
     bit<16> checksum;
 }
-
-// header cpu_h {
-//     count_t _padding;
-//     count_t count;
-// }
 
 /*************************************************************************
  **************  I N G R E S S   P R O C E S S I N G   *******************
@@ -241,8 +236,8 @@ control Ingress(
         }
     };
 
-    action send_to_cpu(){
-        ig_dprsr_md.digest_type = ATTACK_DIGEST;
+    action notify_cpu(){
+        ig_dprsr_md.digest_type = AR_ATTACK_DIGEST;
     }
 
     action drop() {
@@ -307,14 +302,6 @@ control Ingress(
             count_response;
         }
         default_action = NoAction();
-        // const entries = {
-        //     // DNS Reflection
-        //     // (0x0, 0x11, 0x0, 0x0, _, 0x35) :  count_request();
-        //     // (0x0, 0x11, 0x0, 0x0, 0x35, _) :  count_response();
-        //     // TCP SYN-ACK Reflection
-        //     // (0, 6, 0, 1, _, _) :  count_request();
-        //     // (0, 6, 1, 1, _, _) :  count_response();
-        // }
         size = 32;
     }
 
@@ -323,13 +310,10 @@ control Ingress(
             count : range;
         }
         actions = {
-            send_to_cpu;
+            notify_cpu;
             NoAction;
         }
         default_action = NoAction();
-        // const entries = {
-        //     0x20 .. 0xFFFF : send_to_cpu();
-        // }
         size = 1;
     }
 
@@ -386,7 +370,7 @@ control IngressDeparser(packet_out pkt,
     Digest <l2_digest_t>() l2_digest;
 
     apply {
-        if(ig_dprsr_md.digest_type == ATTACK_DIGEST) {
+        if(ig_dprsr_md.digest_type == AR_ATTACK_DIGEST) {
             l2_digest.pack({hdr.ipv4.src_addr});
         }
         pkt.emit(hdr);
