@@ -6,4 +6,9 @@ def cb(dev_id, pipe_id, direction, parser_id, session, msg):
             f.write(str(d) + '\n')
     return 0
 
-dg.callback_register(cb)
+try:
+    dg.callback_deregister()
+except:
+    pass
+finally:
+    dg.callback_register(cb)
