@@ -38,7 +38,7 @@ count_mac.entry_add(target, keys, data)
 # ipv4_forward
 ipv4_forward = bfrt_info.table_get('Ingress.ipv4_forward')
 key = ipv4_forward.make_key([gc.KeyTuple('hdr.ipv4.dst_addr', gc.ipv4_to_bytes('10.0.0.2'))])
-data = ipv4_forward.make_data([gc.DataTuple('port', 0)], 'Ingress.forward')
+data = ipv4_forward.make_data([gc.DataTuple('port', 65)], 'Ingress.forward')
 ipv4_forward.entry_add(target, [key], [data])
 
 # mark_traffic
@@ -121,9 +121,8 @@ threshold.entry_add(target, [key], [data])
 #     client._tear_down_stream()
 
 # p4 = bfrt.aio.pipe
-# def is_attack_callback(dev_id, pipe_id, direction, parser_id, session, msg):
-#     global p4
-
-#     with open('/tmp/output.txt', 'a+') as f:
-#         f.write(msg)
-#     return 0
+def is_attack_callback(dev_id, pipe_id, direction, parser_id, session, msg):
+    global p4
+    with open('/tmp/output.txt', 'a+') as f:
+        f.write(str(msg))
+    return 0

@@ -43,30 +43,8 @@ class AioTest(BfRuntimeTest):
         # pkt = simple_tcp_packet(pktlen=86, ip_dst="192.168.1.1", ip_ihl=5, with_tcp_chksum=True)
         # pkt[IP].chksum = 63566
         # pkt[TCP].dataofs = 5L
-        pkt = simple_udp_packet(ip_dst="192.168.1.1")
-        pkt[UDP].dport = 53
-        pkt[UDP].sport = 8888
-        send_packet(self, 0, pkt)
-
+        pkt = simple_udp_packet(ip_dst="10.0.0.2")
         pkt[UDP].sport = 53
-        pkt[UDP].dport = 8888
-        send_packet(self, 0, pkt)
-
-        pkt[UDP].dport = 53
-        pkt[UDP].sport = 8888
-        send_packet(self, 0, pkt)
-
-        # pkt = simple_udp_packet(ip_dst="192.168.1.1")
-        pkt[UDP].sport = 53
-        pkt[UDP].dport = 8888
-        send_packet(self, 0, pkt)
-
-        pkt[UDP].sport = 53
-        pkt[UDP].dport = 8888
-        send_packet(self, 0, pkt)
-
-        pkt[UDP].sport = 53
-        pkt[UDP].dport = 8888
         send_packet(self, 0, pkt)
         
         # print(dir(pkt[UDP]))
@@ -83,7 +61,6 @@ class AioTest(BfRuntimeTest):
 
         # verify_packet(self, expected_pkt, 1, timeout=2)
         # print("Packet received on port {}".format(1))
-
 
     def cleanUp(self):
         try:
