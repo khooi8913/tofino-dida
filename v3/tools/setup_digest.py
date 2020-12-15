@@ -10,5 +10,5 @@ try:
     dg.callback_deregister()
 except:
     pass
-finally:
-    dg.callback_register(cb)
+
+dg.callback_register(cb)
