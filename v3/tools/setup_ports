@@ -6,3 +6,5 @@ an-set 65/0 1
 an-set 65/1 1
 port-enb 65/0
 port-enb 65/1
+exit
+quit
