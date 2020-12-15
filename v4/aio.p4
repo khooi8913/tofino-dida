@@ -27,6 +27,11 @@ struct reg_pair {
     window_t    window;
 }
 
+const bit<3> AR_ATTACK_DIGEST = 0x03;
+struct l2_digest_t {
+    ipv4_addr_t src_addr;
+}
+
 /*************************************************************************
  ***********************  H E A D E R S  *********************************
  *************************************************************************/
@@ -231,9 +236,8 @@ control Ingress(
         }
     };
 
-    action notify_cpu(PortId_t port){
-        hdr.ethernet.ether_type = 0x8888;
-        ig_tm_md.ucast_egress_port = port; // send to cpu
+    action notify_cpu(){
+        ig_dprsr_md.digest_type = AR_ATTACK_DIGEST;
     }
 
     action drop() {
@@ -362,7 +366,13 @@ control IngressDeparser(packet_out pkt,
     /* Intrinsic */
     in    ingress_intrinsic_metadata_for_deparser_t  ig_dprsr_md)
 {
+
+    Digest <l2_digest_t>() l2_digest;
+
     apply {
+        if(ig_dprsr_md.digest_type == AR_ATTACK_DIGEST) {
+            l2_digest.pack({hdr.ipv4.src_addr});
+        }
         pkt.emit(hdr);
     }
 }

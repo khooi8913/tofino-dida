@@ -55,7 +55,7 @@ mark_traffic.entry_add(target, [key], [data])
 # threshold
 threshold = bfrt_info.table_get('Ingress.threshold')
 key = threshold.make_key([gc.KeyTuple('count', low=0x0a, high=0xFFFF)]) 
-data = threshold.make_data([gc.DataTuple('port', 64)], 'Ingress.notify_cpu')
+data = threshold.make_data([], 'Ingress.notify_cpu')
 threshold.entry_add(target, [key], [data])
 
 # # except:
