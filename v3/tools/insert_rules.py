@@ -68,7 +68,7 @@ threshold.entry_add(target, [key], [data])
 
 
 # SDE-9.2.0 workaround
-# interface._tear_down_stream()
+interface._tear_down_stream()
 
 ####################################
 
@@ -121,8 +121,8 @@ threshold.entry_add(target, [key], [data])
 #     client._tear_down_stream()
 
 # p4 = bfrt.aio.pipe
-def is_attack_callback(dev_id, pipe_id, direction, parser_id, session, msg):
-    global p4
-    with open('/tmp/output.txt', 'a+') as f:
-        f.write(str(msg))
-    return 0
+# def is_attack_callback(dev_id, pipe_id, direction, parser_id, session, msg):
+#     global p4
+#     with open('/tmp/output.txt', 'a+') as f:
+#         f.write(str(msg))
+#     return 0
