@@ -38,7 +38,7 @@ count_mac.entry_add(target, keys, data)
 # ipv4_forward
 ipv4_forward = bfrt_info.table_get('Ingress.ipv4_forward')
 key = ipv4_forward.make_key([gc.KeyTuple('hdr.ipv4.dst_addr', gc.ipv4_to_bytes('10.0.0.2'))])
-data = ipv4_forward.make_data([gc.DataTuple('port', 65)], 'Ingress.forward')
+data = ipv4_forward.make_data([gc.DataTuple('port', 0)], 'Ingress.forward')
 ipv4_forward.entry_add(target, [key], [data])
 
 # mark_traffic
@@ -54,7 +54,7 @@ mark_traffic.entry_add(target, [key], [data])
 
 # threshold
 threshold = bfrt_info.table_get('Ingress.threshold')
-key = threshold.make_key([gc.KeyTuple('count', low=0x00, high=0xFFFF)]) 
+key = threshold.make_key([gc.KeyTuple('count', low=0x0a, high=0xFFFF)]) 
 data = threshold.make_data([], 'Ingress.notify_cpu')
 threshold.entry_add(target, [key], [data])
 
