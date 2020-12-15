@@ -1,9 +1,12 @@
 ucli
 pm
+port-add 9/0 100G NONE
 port-add 65/0 10G NONE
 port-add 65/1 10G NONE
+an-set 9/0 2
 an-set 65/0 1
 an-set 65/1 1
+port-enb 9/-
 port-enb 65/0
 port-enb 65/1
 exit
