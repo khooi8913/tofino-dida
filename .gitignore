@@ -5,3 +5,5 @@ venv/
 .vscode/
 .env
 *.pyc
+*.log
+*.pcap
