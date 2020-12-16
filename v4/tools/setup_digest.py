@@ -12,3 +12,15 @@ def cb(dev_id, pipe_id, direction, parser_id, session, msg):
     return 0
 dg.callback_register(cb)
 
+
+def ccb(dev_id, pipe_id, direction, parser_id, sess, msg):
+    global acl
+    for d in msg:
+        src_addr = d['src_addr']
+        src_port = d['src_port']
+        try:
+            bfrt.aio.pipe.Ingress.acl.add_with_drop(src_addr=src_addr, src_port=src_port)
+        except:
+            pass
+    return 0
+    
