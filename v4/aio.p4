@@ -30,6 +30,7 @@ struct reg_pair {
 const bit<3> AR_ATTACK_DIGEST = 0x03;
 struct l2_digest_t {
     ipv4_addr_t src_addr;
+    l4_port_t src_port;
 }
 
 /*************************************************************************
@@ -245,6 +246,19 @@ control Ingress(
         exit;
     }
 
+    table acl {
+        key = {
+            hdr.ipv4.src_addr : exact;
+            meta.src_port : exact;
+        }
+        actions = {
+            drop;
+            NoAction;
+        }
+        default_action = NoAction();
+        size = 16384;
+    }
+
     action just_count() {
         pkt_ctr.count();
     }
@@ -336,6 +350,7 @@ control Ingress(
                 }
             );
 
+            acl.apply();
             count_mac.apply();
             ipv4_forward.apply();
             if(mark_traffic.apply().hit) {
@@ -371,7 +386,7 @@ control IngressDeparser(packet_out pkt,
 
     apply {
         if(ig_dprsr_md.digest_type == AR_ATTACK_DIGEST) {
-            l2_digest.pack({hdr.ipv4.src_addr});
+            l2_digest.pack({hdr.ipv4.src_addr, meta.src_port});
         }
         pkt.emit(hdr);
     }
