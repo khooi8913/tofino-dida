@@ -12,7 +12,7 @@ import bfrt_grpc.client as gc
 import bfrt_grpc.bfruntime_pb2 as bfruntime_pb2
 
 # Connect to BfRt Server
-interface = gc.ClientInterface(grpc_addr="localhost:50052", client_id=0, device_id=0,is_master=True)
+interface = gc.ClientInterface(grpc_addr=sys.argv[1], client_id=0, device_id=0,is_master=True)
 target = gc.Target(device_id=0, pipe_id=0xFFFF)
 print('Connected to BfRt Server!')
 

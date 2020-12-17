@@ -14,7 +14,7 @@ import bfrt_grpc.client as gc
 import bfrt_grpc.bfruntime_pb2 as bfruntime_pb2
 
 # Connect to BfRt Server
-interface = gc.ClientInterface(grpc_addr="172.27.142.131:50052", client_id=3, device_id=0,is_master=False)
+interface = gc.ClientInterface(grpc_addr=sys.argv[1], client_id=3, device_id=0,is_master=False)
 target = gc.Target(device_id=0, pipe_id=0xFFFF)
 print('Connected to BfRt Server!')
 
@@ -29,9 +29,9 @@ interface.bind_pipeline_config(bfrt_info.p4_name_get())
 acl = bfrt_info.table_get('pipe.Ingress.acl')
 start = time.time()
 # help(acl.entry_get)
-print(dir(acl.entry_get(target, [], {'from_hw': True})))
+# print(dir(acl.entry_get(target, [], {'from_hw': True})))
 
-# entries = list(acl.entry_get(target, []))
+entries = list(acl.entry_get(target, []))
 end = time.time()
 print(end-start)
 ips = []

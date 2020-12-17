@@ -12,7 +12,7 @@ import bfrt_grpc.client as gc
 import bfrt_grpc.bfruntime_pb2 as bfruntime_pb2
 
 # Connect to BfRt Server
-interface = gc.ClientInterface(grpc_addr="localhost:50052", client_id=0, device_id=0,is_master=True)
+interface = gc.ClientInterface(grpc_addr=sys.argv[1], client_id=0, device_id=0,is_master=True)
 target = gc.Target(device_id=0, pipe_id=0xFFFF)
 print('Connected to BfRt Server!')
 
@@ -25,6 +25,22 @@ interface.bind_pipeline_config(bfrt_info.p4_name_get())
 
 
 ### You can now use BFRT CLIENT ###
+# acl
+# acl = bfrt_info.table_get('pipe.Ingress.acl')
+# ips = []
+# with open('/home/xzk/project/tofino-dida/v4/tools/source_ip_malicious_7k.txt', 'r') as f:
+#     data = f.readline()
+#     while data:
+#         data = data.strip()
+#         ips.append(data)
+#         data = f.readline()
+# keys = []
+# data = []
+# for ip in ips:
+#     keys.append(acl.make_key([gc.KeyTuple('hdr.ipv4.src_addr', gc.ipv4_to_bytes(ip)), gc.KeyTuple('meta.src_port', 0x35)]))
+#     data.append(acl.make_data([], 'Ingress.drop'))
+# acl.entry_add(target, keys, data)
+
 # count_mac
 count_mac = bfrt_info.table_get('Ingress.count_mac')
 mac_addrs = ["22:22:22:00:00:01", "00:00:00:00:00:01"]
@@ -54,7 +70,7 @@ mark_traffic.entry_add(target, [key], [data])
 
 # threshold
 threshold = bfrt_info.table_get('Ingress.threshold')
-key = threshold.make_key([gc.KeyTuple('count', low=0x0a, high=0xFFFF)]) 
+key = threshold.make_key([gc.KeyTuple('count', low=0x668, high=0xFFFF)]) 
 data = threshold.make_data([], 'Ingress.notify_cpu')
 threshold.entry_add(target, [key], [data])
 
